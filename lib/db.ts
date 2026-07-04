@@ -93,7 +93,7 @@ export async function insertFabric(
     VALUES (${name}, ${category}, ${description}, ${price ?? null}, true)
     RETURNING *
   `;
-  return { ...result[0], media: [] } as Fabric;
+  return { ...(result[0] as any), media: [] } as Fabric;
 }
 
 // Toggle in_stock status
@@ -118,7 +118,7 @@ export async function updateFabric(
     WHERE id = ${id}
     RETURNING *
   `;
-  return { ...result[0], media: [] } as Fabric;
+  return { ...(result[0] as any), media: [] } as Fabric;
 }
 
 // Delete fabric (media auto-deleted via CASCADE)
