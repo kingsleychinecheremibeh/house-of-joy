@@ -5,14 +5,15 @@ import { cookies } from "next/headers";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const cookieStore = cookies();
   if (cookieStore.get("admin_session")?.value !== "true") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = parseInt(params.id, 10);
+  const { id: rawId } = await params;
+  const id = parseInt(rawId, 10);
   if (isNaN(id)) {
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
   }

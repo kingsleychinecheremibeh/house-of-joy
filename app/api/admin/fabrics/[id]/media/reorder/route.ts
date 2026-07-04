@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const cookieStore = cookies();
   if (cookieStore.get("admin_session")?.value !== "true") {
@@ -13,6 +13,7 @@ export async function POST(
   }
 
   try {
+    const { id } = await params;
     const body = await request.json();
     const { updates } = body;
     if (!Array.isArray(updates)) {
@@ -22,7 +23,7 @@ export async function POST(
     await bulkReorderFabricMedia(updates);
     revalidatePath("/");
     revalidatePath("/admin");
-    revalidatePath(`/fabrics/${params.id}`);
+    revalidatePath(`/fabrics/${id}`);
     
     return NextResponse.json({ success: true });
   } catch (err: any) {

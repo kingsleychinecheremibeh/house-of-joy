@@ -5,11 +5,6 @@ export const size = { width: 512, height: 512 }
 export const contentType = 'image/png'
 
 export default async function Icon() {
-  // Load Playfair Display — the same font already used on the website
-  const playfairFont = await fetch(
-    new URL('https://fonts.gstatic.com/s/playfairdisplay/v36/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQ.woff2')
-  ).then((res) => res.arrayBuffer())
-
   return new ImageResponse(
     (
       <div
@@ -37,7 +32,7 @@ export default async function Icon() {
         {/* HJ monogram */}
         <span
           style={{
-            fontFamily: '"Playfair Display"',
+            fontFamily: 'serif',
             fontSize: '210px',
             color: '#1a1a1a',
             letterSpacing: '0.05em',
@@ -51,14 +46,6 @@ export default async function Icon() {
     ),
     {
       ...size,
-      fonts: [
-        {
-          name: 'Playfair Display',
-          data: playfairFont,
-          style: 'normal',
-          weight: 400,
-        },
-      ],
     }
   )
 }
