@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Fabric, FabricMedia } from "@/lib/db";
@@ -213,19 +213,16 @@ export default function FabricDetailClient({
   related: Fabric[];
 }) {
   const inStock = fabric.in_stock !== false;
-  const [pageUrl, setPageUrl] = useState("");
 
-  // Get the current page URL on the client-side so WhatsApp can generate a rich link preview
-  useEffect(() => {
-    setPageUrl(window.location.href);
-  }, []);
-
-  const whatsappMessage = encodeURIComponent(
-    inStock
-      ? `Hi Joy! 👋\n\nI saw the "${fabric.name}" on your website.\n\nIs it available? How much is it?${pageUrl ? `\n\nLink: ${pageUrl}` : ""}`
-      : `Hi Joy! 👋\n\nI'm interested in the "${fabric.name}". Can you let me know when it's back in stock?${pageUrl ? `\n\nLink: ${pageUrl}` : ""}`
-  );
-
+  const handleWhatsApp = (e: React.MouseEvent, isWaitlist: boolean = false) => {
+    e.preventDefault();
+    const pageUrl = window.location.href;
+    const msg = isWaitlist
+      ? `Hi Joy! 👋\n\nI'm interested in the "${fabric.name}". Can you let me know when it's back in stock?\n\nLink: ${pageUrl}`
+      : `Hi Joy! 👋\n\nI saw the "${fabric.name}" on your website.\n\nIs it available? How much is it?\n\nLink: ${pageUrl}`;
+      
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+  };
   return (
     <>
       {/* Navbar */}
@@ -285,13 +282,12 @@ export default function FabricDetailClient({
               {/* Actions */}
               <div className="space-y-3">
                 {/* WhatsApp CTA */}
-                <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={(e) => handleWhatsApp(e, false)}
+                  disabled={!inStock}
                   className={`flex items-center justify-center gap-2 w-full py-4 font-sans text-xs uppercase tracking-[0.25em] font-semibold transition-all ${
                     inStock
-                      ? "bg-primary text-white hover:bg-primary-light"
+                      ? "bg-primary text-white hover:bg-primary-light cursor-pointer"
                       : "bg-neutral-100 text-foreground/40 pointer-events-none"
                   }`}
                 >
@@ -300,18 +296,16 @@ export default function FabricDetailClient({
                     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.528 5.845L.057 23.882a.75.75 0 00.921.921l6.037-1.471A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.713 9.713 0 01-4.98-1.371l-.356-.214-3.693.9.916-3.594-.233-.371A9.713 9.713 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z" />
                   </svg>
                   {inStock ? "Order on WhatsApp" : "Out of Stock"}
-                </a>
+                </button>
 
                 {/* Join waitlist if out of stock */}
                 {!inStock && (
-                  <a
-                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-4 font-sans text-xs uppercase tracking-[0.25em] font-semibold border border-foreground/20 text-foreground/60 hover:border-primary hover:text-primary transition-all"
+                  <button
+                    onClick={(e) => handleWhatsApp(e, true)}
+                    className="flex items-center justify-center gap-2 w-full py-4 font-sans text-xs uppercase tracking-[0.25em] font-semibold border border-foreground/20 text-foreground/60 hover:border-primary hover:text-primary transition-all cursor-pointer"
                   >
                     Join Waitlist
-                  </a>
+                  </button>
                 )}
 
                 {/* Share button */}
