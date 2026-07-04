@@ -10,6 +10,7 @@ interface MediaItem {
   public_id: string;
   type: "image" | "video";
   sort_order: number;
+  color_tag?: string | null;
 }
 
 interface Fabric {
@@ -17,6 +18,7 @@ interface Fabric {
   name: string;
   category: string;
   description?: string;
+  price?: string | null;
   in_stock?: boolean;
   media: MediaItem[];
   placeholder?: boolean;
@@ -82,8 +84,42 @@ const PLACEHOLDER_FABRICS: Fabric[] = [
 
 const WHATSAPP_NUMBER = "2348037892623";
 
+// Maps color names Joy types (e.g. "Wine Red") to a CSS color for the dot
+function colorNameToHex(name: string): string {
+  const map: Record<string, string> = {
+    // Reds / Pinks
+    "red": "#e63946", "wine": "#722f37", "wine red": "#722f37", "burgundy": "#800020",
+    "maroon": "#800000", "rose": "#ff007f", "pink": "#ff69b4", "blush": "#f4a7b9",
+    "coral": "#ff6b6b", "fuchsia": "#ff00ff", "magenta": "#c9184a",
+    // Blues
+    "blue": "#1d3557", "royal blue": "#4169e1", "navy": "#001f5b", "navy blue": "#001f5b",
+    "sky blue": "#87ceeb", "cobalt": "#0047ab", "teal": "#008080", "turquoise": "#40e0d0",
+    "ice blue": "#b0e0e6", "powder blue": "#b0d4e3",
+    // Greens
+    "green": "#2d6a4f", "emerald": "#50c878", "olive": "#808000", "sage": "#87ae73",
+    "mint": "#98ff98", "forest": "#228b22",
+    // Neutrals
+    "white": "#f5f5f0", "cream": "#fffdd0", "ivory": "#fffff0", "off white": "#f8f8f0",
+    "black": "#1a1a1a", "charcoal": "#36454f", "grey": "#808080", "gray": "#808080",
+    "silver": "#c0c0c0", "nude": "#e3bc9a", "beige": "#f5f0e1", "camel": "#c19a6b",
+    "khaki": "#c3b091",
+    // Browns
+    "brown": "#795548", "chocolate": "#3d1c02", "coffee": "#6f4e37", "mocha": "#967969",
+    // Golds / Yellows
+    "gold": "#d4af37", "yellow": "#ffd700", "champagne": "#f7e7ce", "mustard": "#ffdb58",
+    "amber": "#ffbf00",
+    // Purples
+    "purple": "#6a0572", "lilac": "#c8a2c8", "lavender": "#e6e6fa", "plum": "#8e4585",
+    "violet": "#7f00ff", "mauve": "#e0b0ff",
+    // Oranges
+    "orange": "#ff7518", "peach": "#ffcba4", "tangerine": "#f28500",
+  };
+  const key = name.toLowerCase().trim();
+  return map[key] ?? "#d4af37"; // default to gold if unknown
+}
+
 // ── Single Fabric Card (Optimised for 2-column mobile grid) ───────────────
-function FabricCard({ fabric }: { fabric: Fabric }) {
+function FabricCard({ fabric, priority = false }: { fabric: Fabric, priority?: boolean }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
 
@@ -125,6 +161,7 @@ function FabricCard({ fabric }: { fabric: Fabric }) {
             fill
             className="fabric-image object-cover"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={priority}
           />
         )}
 
@@ -142,11 +179,15 @@ function FabricCard({ fabric }: { fabric: Fabric }) {
           {fabric.category}
         </span>
 
-        {/* Video indicator */}
+        {/* Video play button — shown when video is active but not hovering */}
         {isVideo && !isHovering && (
-          <span className="absolute top-2 right-2 md:top-4 md:right-4 bg-black/60 text-white text-[8px] md:text-[10px] px-1.5 py-0.5 md:px-2 md:py-1 z-10 flex items-center gap-1 backdrop-blur-sm">
-            ▶
-          </span>
+          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+            <div className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 ml-0.5">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+          </div>
         )}
 
         {/* Image navigation (hidden on mobile, hover on desktop) */}
@@ -207,6 +248,34 @@ function FabricCard({ fabric }: { fabric: Fabric }) {
           <p className="text-foreground/50 font-sans text-[10px] md:text-xs font-light leading-snug line-clamp-2">
             {fabric.description || "Quality fabric from House of Joy."}
           </p>
+          {/* Price */}
+          {fabric.price && (
+            <p className="mt-2 font-sans text-xs md:text-sm font-semibold text-accent tracking-wide">
+              ₦{fabric.price}
+            </p>
+          )}
+          {/* Color dots — only show if any media has a color tag */}
+          {hasMedia && fabric.media.some(m => m.color_tag) && (
+            <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+              {fabric.media.map((m, i) =>
+                m.color_tag ? (
+                  <div
+                    role="button"
+                    key={m.id}
+                    title={m.color_tag}
+                    onClick={() => setActiveIndex(i)}
+                    className={`h-4 w-4 md:h-5 md:w-5 rounded-full border-2 cursor-pointer transition-transform hover:scale-110 ${
+                      i === activeIndex ? "border-accent scale-110" : "border-transparent"
+                    }`}
+                    style={{
+                      background: colorNameToHex(m.color_tag),
+                      boxShadow: i === activeIndex ? '0 0 0 1px #d4af37' : 'inset 0 0 0 1px rgba(0,0,0,0.15)'
+                    }}
+                  />
+                ) : null
+              )}
+            </div>
+          )}
         </div>
 
         <a
@@ -375,8 +444,8 @@ export default function Collection({ fabrics }: { fabrics: Fabric[] }) {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-            {filtered.map((fabric) => (
-              <FabricCard key={fabric.id} fabric={fabric} />
+            {filtered.map((fabric, idx) => (
+              <FabricCard key={fabric.id} fabric={fabric} priority={idx < 4} />
             ))}
           </div>
         )}

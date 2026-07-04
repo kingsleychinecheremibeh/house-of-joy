@@ -55,6 +55,14 @@ export const metadata: Metadata = {
     description: "Quality lace, sequins, stoned materials and Aso Ebi packages. Order on WhatsApp.",
     images: ["/hero-fabric.png"],
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'House of Joy',
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -69,6 +77,8 @@ export default function RootLayout({
     >
       <body className="min-h-screen font-sans text-foreground bg-background">
         {children}
+        {/* Apple touch icon for iOS PWA */}
+        {/* eslint-disable-next-line @next/next/no-head-element */}
       </body>
     </html>
   );

@@ -12,19 +12,23 @@ interface MediaItem {
   createdAt?: string;
 }
 
+interface AdminMediaItem {
+  id: number;
+  url: string;
+  public_id: string;
+  type: "image" | "video";
+  sort_order: number;
+  color_tag?: string | null;
+}
+
 interface Fabric {
   id: number;
   name: string;
   category: string;
   description: string;
+  price?: string | null;
   in_stock: boolean;
-  media: Array<{
-    id: number;
-    url: string;
-    public_id: string;
-    type: "image" | "video";
-    sort_order: number;
-  }>;
+  media: AdminMediaItem[];
 }
 
 const CATEGORIES = ["Lace", "Sequins", "Stones", "Aso Ebi"];
@@ -229,6 +233,7 @@ function MediaPickerModal({
                             alt=""
                             fill
                             className="object-cover"
+                            sizes="120px"
                           />
                         )}
                         <span className="absolute top-1 right-1 bg-black/60 text-white text-[9px] px-1 py-0.5 uppercase">
@@ -345,6 +350,7 @@ export default function AdminPage() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState("");
+  const [newFabricMedia, setNewFabricMedia] = useState<MediaItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -360,8 +366,18 @@ export default function AdminPage() {
   const [dragOverMediaId, setDragOverMediaId] = useState<number | null>(null);
 
   // Media picker
-  const [pickerFabricId, setPickerFabricId] = useState<number | null>(null);
+  const [pickerFabricId, setPickerFabricId] = useState<number | "new" | null>(null);
   const [attachingMedia, setAttachingMedia] = useState(false);
+
+  // Custom confirm modal (replaces browser confirm())
+  const [confirmModal, setConfirmModal] = useState<{
+    message: string;
+    onOk: () => void;
+  } | null>(null);
+
+  function showConfirm(message: string, onOk: () => void) {
+    setConfirmModal({ message, onOk });
+  }
 
   // ── Load fabrics ──────────────────────────────────────────────────────
   async function loadFabrics() {
@@ -411,15 +427,32 @@ export default function AdminPage() {
     });
     if (res.ok) {
       const newFabric = await res.json();
-      setSuccessMsg("Fabric created! Now add photos and videos below.");
+      
+      // If media was added during creation, link it now
+      if (newFabricMedia.length > 0) {
+        for (let i = 0; i < newFabricMedia.length; i++) {
+          const item = newFabricMedia[i];
+          await fetch(`/api/fabrics/${newFabric.id}/media`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: item.url,
+              publicId: item.publicId,
+              type: item.type,
+              sortOrder: i,
+            }),
+          });
+        }
+      }
+
+      setSuccessMsg("Fabric created with photos successfully!");
       setTimeout(() => setSuccessMsg(""), 4000);
       setName("");
       setCategory(CATEGORIES[0]);
       setDescription("");
+      setNewFabricMedia([]);
       setShowAddForm(false);
       await loadFabrics();
-      // Open media picker immediately for the new fabric
-      setPickerFabricId(newFabric.id);
     } else {
       const err = await res.json();
       setSaveError(err.error || "Failed to create. Try again.");
@@ -428,7 +461,12 @@ export default function AdminPage() {
   }
 
   // ── Attach media to fabric ─────────────────────────────────────────────
-  async function handleMediaSelected(fabricId: number, items: MediaItem[]) {
+  async function handleMediaSelected(fabricId: number | "new", items: MediaItem[]) {
+    if (fabricId === "new") {
+      setNewFabricMedia(prev => [...prev, ...items]);
+      return;
+    }
+
     setAttachingMedia(true);
     const existing = fabrics.find((f) => f.id === fabricId)?.media || [];
 
@@ -457,19 +495,21 @@ export default function AdminPage() {
     mediaId: number,
     type: string
   ) {
-    if (!confirm("Remove this photo/video?")) return;
-    await fetch(
-      `/api/fabrics/${fabricId}/media?mediaId=${mediaId}&type=${type}`,
-      { method: "DELETE" }
-    );
-    loadFabrics();
+    showConfirm("Remove this photo/video?", async () => {
+      await fetch(
+        `/api/fabrics/${fabricId}/media?mediaId=${mediaId}&type=${type}`,
+        { method: "DELETE" }
+      );
+      loadFabrics();
+    });
   }
 
   // ── Delete fabric ─────────────────────────────────────────────────────
   async function handleDeleteFabric(id: number) {
-    if (!confirm("Delete this fabric and all its photos/videos?")) return;
-    await fetch(`/api/fabrics/${id}`, { method: "DELETE" });
-    loadFabrics();
+    showConfirm("Delete this fabric and all its photos/videos? This cannot be undone.", async () => {
+      await fetch(`/api/fabrics/${id}`, { method: "DELETE" });
+      loadFabrics();
+    });
   }
 
   // ── Save edit ─────────────────────────────────────────────────────────
@@ -488,21 +528,19 @@ export default function AdminPage() {
   }
 
   async function handleDuplicateFabric(id: number) {
-    if (!confirm("Are you sure you want to duplicate this fabric?")) return;
-    setDuplicatingId(id);
-    const res = await fetch(`/api/admin/fabrics/${id}/duplicate`, {
-      method: "POST"
+    showConfirm("Duplicate this fabric? A copy will be added to the top of your list.", async () => {
+      setDuplicatingId(id);
+      const res = await fetch(`/api/admin/fabrics/${id}/duplicate`, {
+        method: "POST"
+      });
+      setDuplicatingId(null);
+      if (res.ok) {
+        loadFabrics();
+        setSuccessMsg("Fabric duplicated!");
+        setTimeout(() => setSuccessMsg(""), 3000);
+      }
     });
-    setDuplicatingId(null);
-    if (res.ok) {
-      loadFabrics();
-      setSuccessMsg("Fabric duplicated!");
-      setTimeout(() => setSuccessMsg(""), 3000);
-    } else {
-      alert("Failed to duplicate fabric.");
-    }
   }
-
   // ─────────────────────────────────────────────────────────────────────
   // DRAG AND DROP HANDLERS
   // ─────────────────────────────────────────────────────────────────────
@@ -606,6 +644,35 @@ export default function AdminPage() {
         />
       )}
 
+      {/* Custom Confirm Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-charcoal text-white w-full max-w-sm p-8 shadow-2xl flex flex-col gap-6">
+            <p className="font-sans text-sm leading-relaxed text-white/80">
+              {confirmModal.message}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="px-5 py-2.5 border border-white/20 text-white/60 hover:text-white font-sans text-xs uppercase tracking-[0.2em] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  confirmModal.onOk();
+                  setConfirmModal(null);
+                }}
+                className="px-5 py-2.5 bg-accent text-charcoal font-sans text-xs uppercase tracking-[0.2em] font-bold hover:bg-accent-light transition-colors"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Top Bar */}
       <header className="bg-charcoal px-6 py-4 flex justify-between items-center sticky top-0 z-30">
         <h1 className="font-serif text-xl text-white tracking-widest">
@@ -701,18 +768,61 @@ export default function AdminPage() {
                   className="w-full border border-neutral-200 px-4 py-3 font-sans text-sm focus:outline-none focus:border-primary resize-none"
                 />
               </div>
+
+              {/* Pre-upload Media Section */}
+              <div className="pt-4 border-t border-neutral-100">
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block font-sans text-xs uppercase tracking-[0.2em] text-foreground/60">
+                    Photos & Videos ({newFabricMedia.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setPickerFabricId("new")}
+                    className="text-primary font-sans text-xs uppercase tracking-[0.2em] font-semibold hover:underline"
+                  >
+                    + Add Media
+                  </button>
+                </div>
+
+                {newFabricMedia.length > 0 && (
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 mb-4">
+                    {newFabricMedia.map((item, idx) => (
+                      <div key={item.publicId} className="relative aspect-square border border-neutral-200">
+                        {item.type === "video" ? (
+                          <div className="w-full h-full bg-neutral-100 flex items-center justify-center">
+                            <span className="text-xs">▶</span>
+                          </div>
+                        ) : (
+                          <Image src={item.url} alt="" fill className="object-cover" sizes="60px" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setNewFabricMedia(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-sm"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {newFabricMedia.length === 0 && (
+                  <p className="font-sans text-xs text-foreground/40 italic">
+                    Add photos now, or you can add them later.
+                  </p>
+                )}
+              </div>
+
               {saveError && (
                 <p className="text-red-500 font-sans text-sm">{saveError}</p>
               )}
-              <p className="font-sans text-xs text-foreground/40">
-                After saving, you will be able to add photos and videos.
-              </p>
+              
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-primary text-white px-8 py-4 font-sans text-xs uppercase tracking-[0.3em] font-bold hover:bg-primary-light disabled:opacity-50"
+                className="w-full bg-primary text-white px-8 py-4 font-sans text-xs uppercase tracking-[0.3em] font-bold hover:bg-primary-light disabled:opacity-50 mt-2"
               >
-                {saving ? "Saving..." : "Save & Add Photos"}
+                {saving ? "Saving Fabric..." : "Save Fabric"}
               </button>
             </form>
           </div>
@@ -868,7 +978,7 @@ export default function AdminPage() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                      {fabric.media.map((item) => (
+                      {fabric.media.map((item, idx) => (
                         <div
                           key={item.id}
                           draggable
@@ -876,46 +986,79 @@ export default function AdminPage() {
                           onDragOver={(e) => handleDragOver(e, item.id)}
                           onDragLeave={() => setDragOverMediaId(null)}
                           onDrop={(e) => handleDrop(e, item.id, fabric.id)}
-                          className={`relative aspect-square group cursor-grab active:cursor-grabbing border-2 ${
+                          className={`relative group cursor-grab active:cursor-grabbing border-2 ${
                             dragOverMediaId === item.id ? "border-primary scale-105 z-10 shadow-lg" : "border-transparent"
                           } transition-all duration-200`}
                         >
-                          {item.type === "video" ? (
-                            <video
-                              src={item.url}
-                              className="w-full h-full object-cover"
-                              muted
-                              playsInline
-                            />
-                          ) : (
-                            <Image
-                              src={item.url}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              sizes="120px"
-                            />
-                          )}
-                          {/* Overlay on hover */}
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                            <span className="text-white text-[9px] uppercase tracking-wider">
-                              {item.type}
-                            </span>
-                            <button
-                              onClick={() =>
-                                handleDeleteMedia(fabric.id, item.id, item.type)
-                              }
-                              className="bg-red-500 text-white text-[10px] px-2 py-1 uppercase tracking-wider"
-                            >
-                              Remove
-                            </button>
+                          {/* Thumbnail */}
+                          <div className="aspect-square relative overflow-hidden bg-neutral-100">
+                            {item.type === "video" ? (
+                              <>
+                                <video
+                                  src={item.url}
+                                  className="w-full h-full object-cover"
+                                  muted
+                                  playsInline
+                                />
+                                {/* Video play overlay */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                  <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
+                                    <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4 ml-0.5">
+                                      <path d="M8 5v14l11-7z"/>
+                                    </svg>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <Image
+                                src={item.url}
+                                alt=""
+                                fill
+                                className="object-cover"
+                                sizes="120px"
+                              />
+                            )}
+
+                            {/* PRIMARY badge — only on first item */}
+                            {idx === 0 && (
+                              <div className="absolute top-1 left-1 bg-accent text-charcoal text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 flex items-center gap-0.5">
+                                ★ Cover
+                              </div>
+                            )}
+
+                            {/* Hover overlay with remove button */}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleDeleteMedia(fabric.id, item.id, item.type)}
+                                className="bg-red-500 text-white text-[10px] px-2 py-1 uppercase tracking-wider"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
-                          {/* Video badge */}
-                          {item.type === "video" && (
-                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1 py-0.5">
-                              ▶ Video
-                            </span>
-                          )}
+
+                          {/* Color tag input */}
+                          <input
+                            type="text"
+                            defaultValue={item.color_tag ?? ""}
+                            placeholder={idx === 0 ? "e.g. Wine Red" : "Color name"}
+                            maxLength={40}
+                            onBlur={async (e) => {
+                              const val = e.target.value.trim();
+                              // Update locally
+                              setFabrics(prev => prev.map(f =>
+                                f.id === fabric.id
+                                  ? { ...f, media: f.media.map(m => m.id === item.id ? { ...m, color_tag: val || null } : m) }
+                                  : f
+                              ));
+                              await fetch(`/api/admin/media/${item.id}/color`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ colorTag: val || null }),
+                              });
+                            }}
+                            className="w-full mt-1 px-2 py-1 text-[10px] font-sans border border-neutral-200 focus:outline-none focus:border-accent text-foreground/70 placeholder-foreground/30 bg-white"
+                          />
                         </div>
                       ))}
                     </div>

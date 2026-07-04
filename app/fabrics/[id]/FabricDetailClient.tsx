@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Fabric, FabricMedia } from "@/lib/db";
@@ -60,6 +60,32 @@ function ShareButton({ fabricName }: { fabricName: string }) {
   );
 }
 
+// Maps color names Joy types (e.g. "Wine Red") to a CSS color for the dot
+function colorNameToHex(name: string): string {
+  const map: Record<string, string> = {
+    "red": "#e63946", "wine": "#722f37", "wine red": "#722f37", "burgundy": "#800020",
+    "maroon": "#800000", "rose": "#ff007f", "pink": "#ff69b4", "blush": "#f4a7b9",
+    "coral": "#ff6b6b", "fuchsia": "#ff00ff", "magenta": "#c9184a",
+    "blue": "#1d3557", "royal blue": "#4169e1", "navy": "#001f5b", "navy blue": "#001f5b",
+    "sky blue": "#87ceeb", "cobalt": "#0047ab", "teal": "#008080", "turquoise": "#40e0d0",
+    "ice blue": "#b0e0e6", "powder blue": "#b0d4e3",
+    "green": "#2d6a4f", "emerald": "#50c878", "olive": "#808000", "sage": "#87ae73",
+    "mint": "#98ff98", "forest": "#228b22",
+    "white": "#f5f5f0", "cream": "#fffdd0", "ivory": "#fffff0", "off white": "#f8f8f0",
+    "black": "#1a1a1a", "charcoal": "#36454f", "grey": "#808080", "gray": "#808080",
+    "silver": "#c0c0c0", "nude": "#e3bc9a", "beige": "#f5f0e1", "camel": "#c19a6b",
+    "khaki": "#c3b091",
+    "brown": "#795548", "chocolate": "#3d1c02", "coffee": "#6f4e37", "mocha": "#967969",
+    "gold": "#d4af37", "yellow": "#ffd700", "champagne": "#f7e7ce", "mustard": "#ffdb58",
+    "amber": "#ffbf00",
+    "purple": "#6a0572", "lilac": "#c8a2c8", "lavender": "#e6e6fa", "plum": "#8e4585",
+    "violet": "#7f00ff", "mauve": "#e0b0ff",
+    "orange": "#ff7518", "peach": "#ffcba4", "tangerine": "#f28500",
+  };
+  const key = name.toLowerCase().trim();
+  return map[key] ?? "#d4af37";
+}
+
 // ── Media Gallery ─────────────────────────────────────────────────────────
 function MediaGallery({ media, name }: { media: FabricMedia[]; name: string }) {
   const [active, setActive] = useState(0);
@@ -99,6 +125,28 @@ function MediaGallery({ media, name }: { media: FabricMedia[]; name: string }) {
           />
         )}
       </div>
+
+      {/* Color dots (if any media has color_tag) */}
+      {media.some(m => m.color_tag) && (
+        <div className="flex flex-wrap gap-2 items-center py-1">
+          {media.map((item, i) =>
+            item.color_tag ? (
+              <button
+                key={`color-${item.id}`}
+                title={item.color_tag}
+                onClick={() => setActive(i)}
+                className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                  i === active ? "border-accent scale-110" : "border-transparent"
+                }`}
+                style={{
+                  background: colorNameToHex(item.color_tag),
+                  boxShadow: i === active ? '0 0 0 2px #d4af37' : 'inset 0 0 0 1px rgba(0,0,0,0.15)'
+                }}
+              />
+            ) : null
+          )}
+        </div>
+      )}
 
       {/* Thumbnail strip */}
       {media.length > 1 && (
@@ -165,10 +213,17 @@ export default function FabricDetailClient({
   related: Fabric[];
 }) {
   const inStock = fabric.in_stock !== false;
+  const [pageUrl, setPageUrl] = useState("");
+
+  // Get the current page URL on the client-side so WhatsApp can generate a rich link preview
+  useEffect(() => {
+    setPageUrl(window.location.href);
+  }, []);
+
   const whatsappMessage = encodeURIComponent(
     inStock
-      ? `Hi Joy! 👋\n\nI saw the "${fabric.name}" on your website.\n\nIs it available? How much is it?`
-      : `Hi Joy! 👋\n\nI'm interested in the "${fabric.name}". Can you let me know when it's back in stock?`
+      ? `Hi Joy! 👋\n\nI saw the "${fabric.name}" on your website.\n\nIs it available? How much is it?${pageUrl ? `\n\nLink: ${pageUrl}` : ""}`
+      : `Hi Joy! 👋\n\nI'm interested in the "${fabric.name}". Can you let me know when it's back in stock?${pageUrl ? `\n\nLink: ${pageUrl}` : ""}`
   );
 
   return (

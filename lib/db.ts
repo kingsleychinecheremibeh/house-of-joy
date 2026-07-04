@@ -11,6 +11,7 @@ export interface FabricMedia {
   public_id: string;
   type: "image" | "video";
   sort_order: number;
+  color_tag?: string | null;
 }
 
 export interface Fabric {
@@ -18,6 +19,7 @@ export interface Fabric {
   name: string;
   category: string;
   description: string;
+  price?: string | null;
   in_stock: boolean;
   created_at: string;
   media: FabricMedia[];
@@ -29,7 +31,7 @@ export interface Fabric {
 export async function getFabrics(): Promise<Fabric[]> {
   const rows = await sql`
     SELECT
-      f.id, f.name, f.category, f.description, f.in_stock, f.created_at,
+      f.id, f.name, f.category, f.description, f.price, f.in_stock, f.created_at,
       COALESCE(
         json_agg(
           json_build_object(
@@ -38,7 +40,8 @@ export async function getFabrics(): Promise<Fabric[]> {
             'url', fm.url,
             'public_id', fm.public_id,
             'type', fm.type,
-            'sort_order', fm.sort_order
+            'sort_order', fm.sort_order,
+            'color_tag', fm.color_tag
           ) ORDER BY fm.sort_order
         ) FILTER (WHERE fm.id IS NOT NULL),
         '[]'
@@ -55,7 +58,7 @@ export async function getFabrics(): Promise<Fabric[]> {
 export async function getFabricById(id: number): Promise<Fabric | null> {
   const rows = await sql`
     SELECT
-      f.id, f.name, f.category, f.description, f.in_stock, f.created_at,
+      f.id, f.name, f.category, f.description, f.price, f.in_stock, f.created_at,
       COALESCE(
         json_agg(
           json_build_object(
@@ -64,7 +67,8 @@ export async function getFabricById(id: number): Promise<Fabric | null> {
             'url', fm.url,
             'public_id', fm.public_id,
             'type', fm.type,
-            'sort_order', fm.sort_order
+            'sort_order', fm.sort_order,
+            'color_tag', fm.color_tag
           ) ORDER BY fm.sort_order
         ) FILTER (WHERE fm.id IS NOT NULL),
         '[]'
@@ -81,11 +85,12 @@ export async function getFabricById(id: number): Promise<Fabric | null> {
 export async function insertFabric(
   name: string,
   category: string,
-  description: string
+  description: string,
+  price?: string
 ): Promise<Fabric> {
   const result = await sql`
-    INSERT INTO fabrics (name, category, description, in_stock)
-    VALUES (${name}, ${category}, ${description}, true)
+    INSERT INTO fabrics (name, category, description, price, in_stock)
+    VALUES (${name}, ${category}, ${description}, ${price ?? null}, true)
     RETURNING *
   `;
   return { ...result[0], media: [] } as Fabric;
@@ -104,11 +109,12 @@ export async function updateFabric(
   id: number,
   name: string,
   category: string,
-  description: string
+  description: string,
+  price?: string
 ): Promise<Fabric> {
   const result = await sql`
     UPDATE fabrics
-    SET name = ${name}, category = ${category}, description = ${description}
+    SET name = ${name}, category = ${category}, description = ${description}, price = ${price ?? null}
     WHERE id = ${id}
     RETURNING *
   `;
