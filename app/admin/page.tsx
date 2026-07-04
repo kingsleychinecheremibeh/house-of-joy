@@ -673,25 +673,24 @@ export default function AdminPage() {
       )}
 
 
-      {/* Top Bar */}
-      <header className="bg-charcoal px-6 py-4 flex justify-between items-center sticky top-0 z-30">
-        <h1 className="font-serif text-xl text-white tracking-widest">
-          HOUSE OF <span className="text-accent">JOY</span>
-          <span className="text-white/40 font-sans text-xs ml-3 uppercase tracking-[0.2em]">
+      <header className="bg-charcoal px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 flex justify-between items-center sticky top-0 z-30">
+        <h1 className="font-serif text-lg sm:text-xl text-white tracking-widest flex items-center gap-x-2 sm:gap-x-3 shrink-0">
+          <span>HOUSE OF <span className="text-accent">JOY</span></span>
+          <span className="hidden sm:inline text-white/40 font-sans text-xs uppercase tracking-[0.2em]">
             Dashboard
           </span>
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
           <a
             href="/"
-            target="_blank"
-            className="text-white/50 hover:text-accent font-sans text-xs uppercase tracking-[0.2em] transition-colors"
+            className="text-white/50 hover:text-accent font-sans text-[10px] sm:text-xs uppercase tracking-[0.2em] transition-colors"
           >
-            View Site ↗
+            <span className="hidden sm:inline">View Site ↗</span>
+            <span className="sm:hidden">Site ↗</span>
           </a>
           <button
             onClick={handleLogout}
-            className="border border-white/20 text-white/70 hover:text-white px-4 py-2 font-sans text-xs uppercase tracking-[0.2em] transition-all"
+            className="border border-white/20 text-white/70 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 font-sans text-[10px] sm:text-xs uppercase tracking-[0.2em] transition-all"
           >
             Logout
           </button>
@@ -874,7 +873,7 @@ export default function AdminPage() {
                         rows={1}
                         className="border border-neutral-200 px-3 py-2 font-sans text-sm focus:outline-none focus:border-primary resize-none flex-1"
                       />
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2 mt-2 md:mt-0 w-full md:w-auto">
                         <button
                           onClick={() => handleSaveEdit(fabric.id)}
                           className="bg-primary text-white px-4 py-2 font-sans text-xs uppercase tracking-widest hover:bg-primary-light"
@@ -904,7 +903,7 @@ export default function AdminPage() {
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex flex-wrap gap-2 shrink-0 mt-3 md:mt-0 w-full md:w-auto">
                         {/* Stock toggle */}
                         <button
                           onClick={async () => {
